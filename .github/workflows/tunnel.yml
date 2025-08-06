@@ -1,0 +1,92 @@
+name: RDP Tunnel Server
+
+on:
+  workflow_dispatch:
+    inputs:
+      tunnel_type:
+        description: 'Tunnel Service'
+        required: true
+        default: 'bore'
+        type: choice
+        options:
+        - bore
+        - playit
+        - localtunnel
+
+jobs:
+  create-tunnel:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y curl wget
+    
+    - name: Setup Bore Tunnel
+      if: github.event.inputs.tunnel_type == 'bore'
+      run: |
+        # Install Rust and Bore
+        curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+        source ~/.cargo/env
+        cargo install bore-cli
+        
+        # Start tunnel server
+        echo "🚀 Starting Bore tunnel server..."
+        echo "Connect your local machine to: bore.pub"
+        
+        # Create tunnel endpoint
+        ~/.cargo/bin/bore server --port 2200 &
+        
+        # Display connection info
+        echo "=================================="
+        echo "🎯 TUNNEL SERVER READY!"
+        echo "=================================="
+        echo "Local command to run on your PC:"
+        echo "bore local 3389 --to bore.pub --port 2200"
+        echo "=================================="
+        
+        # Keep server running
+        sleep 3600
+    
+    - name: Setup PlayIt Tunnel
+      if: github.event.inputs.tunnel_type == 'playit'
+      run: |
+        # Download PlayIt
+        wget https://github.com/playit-cloud/playit-agent/releases/latest/download/playit-linux_64
+        chmod +x playit-linux_64
+        
+        echo "🚀 Starting PlayIt tunnel..."
+        echo "=================================="
+        echo "🎯 PLAYIT TUNNEL READY!"
+        echo "=================================="
+        echo "Local command to run on your PC:"
+        echo "./playit-linux_64 --proto tcp --local-port 3389"
+        echo "=================================="
+        
+        # Start tunnel
+        ./playit-linux_64 &
+        sleep 3600
+    
+    - name: Setup LocalTunnel
+      if: github.event.inputs.tunnel_type == 'localtunnel'
+      run: |
+        # Install Node.js and LocalTunnel
+        curl -fsSL https://deb.nodesource.com/setup_18.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+        npm install -g localtunnel
+        
+        echo "🚀 Starting LocalTunnel..."
+        echo "=================================="
+        echo "🎯 LOCALTUNNEL READY!"
+        echo "=================================="
+        echo "Local command to run on your PC:"
+        echo "lt --port 3389 --subdomain myrdp$(date +%s)"
+        echo "=================================="
+        
+        # Create tunnel
+        lt --port 8080 --subdomain tunnel$(date +%s) &
+        sleep 3600
